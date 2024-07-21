@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         let bitrate = document.getElementById("bitrate").value;
         let timeslice = document.getElementById("timeslice").value;
+        let duration = document.getElementById("duration").value;
 
         let uuid = Date.now();
         console.log(uuid);
@@ -41,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
             let mimeType = MediaRecorder.isTypeSupported("video/webm") ? "video/webm" : "video/mp4";
             console.log(mimeType);
 
-            socket.emit("init", uuid, mimeType);
+            socket.emit("init", uuid, mimeType, timeslice);
 
 
             let options = {
@@ -51,6 +52,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
             recorder = new MediaRecorder(stream, options);
             let chunkCounter = 0;
+
+            recorder.addEventListener("start", () => {
+                startButton.disabled = true;
+                stopButton.disabled = false;
+
+                setTimeout(() => {
+                    recorder.stop();
+                }, duration);
+            });
+
 
             recorder.addEventListener("dataavailable", (data) => {
                 try {
@@ -71,13 +82,16 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             recorder.addEventListener("stop", () => {
-                video.srcObject = null;
+                video.src = "";
 
                 stream.getTracks().forEach(function(track) {
                     track.stop();
                 });
 
                 socket.emit("stop", uuid);
+
+                startButton.disabled = false;
+                stopButton.disabled = true;
             });
 
             recorder.start(timeslice); // can be edited for lower latency

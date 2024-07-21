@@ -1,11 +1,9 @@
-import time
-import datetime
-import io
-from threading import Thread
+import json
+from pathlib import Path
 
+# import cv2
 from flask import Flask, render_template
 from flask_socketio import SocketIO
-from matplotlib import pyplot as plt
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -13,63 +11,40 @@ socketio = SocketIO(app)
 
 
 files = {}
-bytes_files = {}
+info = {}
 
 @socketio.on("init")
-def init(uuid, mime_type):
+def init(uuid, mime_type, timeslice):
     print("new {}".format(uuid))
     ext = "webm" if mime_type == "video/webm" else "mp4"
-    files[uuid] = open(f"{datetime.datetime.now().isoformat()}.{ext}", "wb")
-    bytes_files[uuid] = io.BytesIO()
-
-    # Thread(target=frames_view, args=(bytes_files[uuid],)).start()
+    files[uuid] = open(f"videos/{uuid}.{ext}", "wb")
+    info[uuid] = {"timeslice": int(timeslice), "segments": []}
 
 @socketio.on("stop")
 def init(uuid):
     files[uuid].close()
     files.pop(uuid)
 
+    with open(f"videos/{uuid}.seg", "w") as file:
+        json.dump(info[uuid], file)
+
+    info.pop(uuid)
+
+
 
 @socketio.on("frames")
 def farmes(uuid, data):
     files[uuid].write(data)
+    info[uuid]["segments"].append(len(data))
 
-    pos = bytes_files[uuid].tell()
-
-    bytes_files[uuid].seek(0, 2)
-    bytes_files[uuid].write(data)
-    bytes_files[uuid].seek(pos)
-
-    plt.show()
 
 @app.route('/')
 def index_page():
     return render_template('index.html')
 
 
-def frames_view(file):
-    print("imp")
-    from av import open as avopen
-    print("done")
-
-    time.sleep(3)
-    video = avopen(file, format="webm")
-
-    while True:
-        for packet in video.demux():
-            for frame in packet.decode():
-                if packet.stream.type == 'video':
-                    print(packet)
-                    print(frame)
-                    img = frame.to_ndarray(format='bgr24')
-                    time.sleep(1)
-                    plt.imshow(img)
-                    plt.pause(1)
-
-
-
 if __name__ == '__main__':
-    bytes_files[1] = io.BytesIO()
+    Path("videos").mkdir(parents=True, exist_ok=True)
 
     print("strt")
     socketio.run(app, "0.0.0.0")
