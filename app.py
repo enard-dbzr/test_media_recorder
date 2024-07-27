@@ -1,11 +1,12 @@
-import glob
-import json
+import base64
 from pathlib import Path
 
+
 import flask
-# import cv2
 from flask import Flask, render_template, send_file
 from flask_socketio import SocketIO
+
+from core import VideoAggregator
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -15,60 +16,45 @@ socketio = SocketIO(app)
 files = {}
 info = {}
 
+video_aggregator = VideoAggregator()
+
+
 @socketio.on("init")
 def init(uuid, mime_type, timeslice):
-    print("new {}".format(uuid))
-    ext = "webm" if mime_type == "video/webm" else "mp4"
-    files[uuid] = open(f"videos/{uuid}.{ext}", "wb")
-    info[uuid] = {"timeslice": int(timeslice), "segments": []}
+    print(f"new", uuid, mime_type, timeslice)
+    video_aggregator.start(uuid, mime_type, timeslice)
+
 
 @app.route("/init/<uuid>", methods=["POST"])
 def init_route(uuid):
     args = flask.request.values
     mime_type, timeslice = args["mime_type"], args["timeslice"]
 
-    print("new {}".format(uuid))
-    ext = "webm" if mime_type == "video/webm" else "mp4"
-    files[uuid] = open(f"videos/{uuid}.{ext}", "wb")
-    info[uuid] = {"timeslice": int(timeslice), "segments": []}
+    video_aggregator.start(uuid, mime_type, timeslice)
 
     return "", 200
 
 @socketio.on("stop")
 def init(uuid):
-    files[uuid].close()
-    files.pop(uuid)
-
-    with open(f"videos/{uuid}.seg", "w") as file:
-        json.dump(info[uuid], file)
-
-    info.pop(uuid)
+    video_aggregator.stop(uuid)
 
 
 @app.route("/stop/<uuid>", methods=["POST"])
 def stop_route(uuid):
-    files[uuid].close()
-    files.pop(uuid)
-
-    with open(f"videos/{uuid}.seg", "w") as file:
-        json.dump(info[uuid], file)
-
-    info.pop(uuid)
+    video_aggregator.stop(uuid)
     return "", 200
 
 
 @socketio.on("frames")
 def farmes(uuid, data):
-    files[uuid].write(data)
-    info[uuid]["segments"].append(len(data))
+    video_aggregator.frames(uuid, data)
 
 
 @app.route("/frames/<uuid>", methods=["POST"])
 def frames_route(uuid):
     data = flask.request.data
 
-    files[uuid].write(data)
-    info[uuid]["segments"].append(len(data))
+    video_aggregator.frames(uuid, data)
     return "", 200
 
 
@@ -76,16 +62,26 @@ def frames_route(uuid):
 def index_page():
     return render_template('index.html')
 
-@app.route("/video/<video_id>")
+@app.route("/result/<video_id>")
 def result_video(video_id):
     for f in Path().glob(f"videos/{video_id}.*"):
         if f.suffix != ".seg":
             return send_file(f, mimetype=f"video/{f.suffix[1:]}")
     return "", 404
 
+@socketio.on("total")
+def total_event(video_id):
+    res = video_aggregator.get_total(video_id)
+    print("sending result")
+    socketio.emit("total_result", (res["image"], res["segments_received"]))
+
+@app.route("/total/<video_id>")
+def total_route(video_id):
+    res = video_aggregator.get_total(video_id)
+    res["image"] = base64.b64encode(res["image"]).decode("ascii")
+    return res, 200
+
 
 if __name__ == '__main__':
-    Path("videos").mkdir(parents=True, exist_ok=True)
-
     print("strt")
     socketio.run(app, "0.0.0.0", debug=True)

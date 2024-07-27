@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let timeslice = document.getElementById("timeslice").value;
         let duration = document.getElementById("duration").value;
 
-        let uuid = Date.now();
+        let uuid = Date.now().toString();
         console.log(uuid);
 
         let stream;
@@ -38,6 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             stream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
             video.srcObject = stream;
+
+            console.log(stream.getVideoTracks()[0].getSettings());
 
             let mimeType = MediaRecorder.isTypeSupported("video/webm") ? "video/webm" : "video/mp4";
             console.log(mimeType);
