@@ -24,8 +24,10 @@ async def hello(websocket: WebSocketServerProtocol):
             loop.run_in_executor(None, video_aggregator.stop, uuid)
         elif event == "total":
             data = await loop.run_in_executor(None, video_aggregator.get_total, uuid)
-            await websocket.send(data["image"])
+            await websocket.send(str(data["frames"]))
             await websocket.send(str(data["segments_received"]))
+            await websocket.send(data["first_image"])
+            await websocket.send(data["last_image"])
 
             break
     await websocket.close()
