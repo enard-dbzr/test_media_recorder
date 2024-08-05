@@ -29,6 +29,8 @@ async def hello(websocket: WebSocketServerProtocol):
             await websocket.send(data["first_image"])
             await websocket.send(data["last_image"])
 
+            await asyncio.sleep(1)
+
             break
     await websocket.close()
 

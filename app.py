@@ -73,12 +73,14 @@ def result_video(video_id):
 def total_event(video_id):
     res = video_aggregator.get_total(video_id)
     print("sending result")
-    socketio.emit("total_result", (res["image"], res["segments_received"]))
+    socketio.emit("total_result",
+                  (res["frames"], res["segments_received"], res["first_image"], res["last_image"]))
 
 @app.route("/total/<video_id>")
 def total_route(video_id):
     res = video_aggregator.get_total(video_id)
-    res["image"] = base64.b64encode(res["image"]).decode("ascii")
+    res["first_image"] = base64.b64encode(res["first_image"]).decode()
+    res["last_image"] = base64.b64encode(res["last_image"]).decode()
     return res, 200
 
 

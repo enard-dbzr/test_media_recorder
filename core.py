@@ -1,16 +1,13 @@
-import base64
+
 import io
 import json
-import os
+
 import threading
 from pathlib import Path
 from queue import Queue
 from subprocess import Popen, PIPE
 from typing import Optional
 
-import PIL
-import cv2
-import numpy as np
 from PIL import Image
 
 
@@ -64,6 +61,7 @@ class VideoRenderer:
 
         self.ffmpeg_command = [
             'ffmpeg',
+            '-hwaccel', 'auto',
             '-i', '-',
             '-f', 'rawvideo',
             '-pix_fmt', 'rgb24',
@@ -127,6 +125,9 @@ class VideoRenderer:
 
         # cv2.destroyAllWindows()
 
+        print("rendered", frames_count)
+
+
         first_image, last_image = io.BytesIO(), io.BytesIO()
         Image.frombytes("RGB", (self.width, self.height), first_frame).save(first_image, "JPEG")
         Image.frombytes("RGB", (self.width, self.height), last_frame).save(last_image, "JPEG")
@@ -136,7 +137,6 @@ class VideoRenderer:
             "first_image": first_image.getvalue(),
             "last_image": last_image.getvalue()
         }
-        print("rendered")
         self._render_done_event.set()
 
     def _set_video_properties(self, data):
