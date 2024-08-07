@@ -132,6 +132,7 @@ class VideoRenderer:
         Image.frombytes("RGB", (self.width, self.height), first_frame).save(first_image, "JPEG")
         Image.frombytes("RGB", (self.width, self.height), last_frame).save(last_image, "JPEG")
 
+        self._process.terminate()
         self.result = {
             "frames": frames_count,
             "first_image": first_image.getvalue(),

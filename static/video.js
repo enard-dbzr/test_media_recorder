@@ -29,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let bitrate = document.getElementById("bitrate").value;
         let timeslice = document.getElementById("timeslice").value;
         let duration = document.getElementById("duration").value;
+        let audioState = document.getElementById("audio").checked;
 
         let uuid = Date.now().toString();
         console.log(uuid);
@@ -36,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
         let stream;
 
         try {
-            stream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+            stream = await navigator.mediaDevices.getUserMedia({video: true, audio: audioState});
             video.srcObject = stream;
 
             console.log(stream.getVideoTracks()[0].getSettings());
