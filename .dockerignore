@@ -1,3 +1,16 @@
 .venv
 videos
 .idea
+
+.git
+.gitignore
+.gitattributes
+
+.codeclimate.yml
+.travis.yml
+.taskcluster.yml
+
+docker-compose.yml
+Dockerfile
+.docker
+.dockerignore
