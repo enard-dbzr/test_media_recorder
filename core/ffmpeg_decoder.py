@@ -1,60 +1,17 @@
 
 import io
-import json
 
 import threading
-from pathlib import Path
 from queue import Queue
 from subprocess import Popen, PIPE
 from typing import Optional
 
 from PIL import Image
 
-
-class VideoAggregator:
-    def __init__(self):
-        self.files = {}
-        self.info = {}
-        self._renderers = {}
-
-        Path("videos").mkdir(parents=True, exist_ok=True)
-
-    def start(self, uuid: str, mime_type, timeslice):
-        uuid = str(uuid)
-        ext = "webm" if mime_type == "video/webm" else "mp4"
-        self.files[uuid] = open(f"videos/{uuid}.{ext}", "wb")
-        self.info[uuid] = {"timeslice": int(timeslice), "segments": []}
-        self._renderers[uuid] = VideoRenderer()
-        self._renderers[uuid].start()
-
-    def stop(self, uuid: str):
-        uuid = str(uuid)
-        self.files[uuid].close()
-
-        with open(f"videos/{uuid}.seg", "w") as file:
-            json.dump(self.info[uuid], file)
-
-        self._renderers[uuid].stop_render()
-
-    def frames(self, uuid: str, data):
-        uuid = str(uuid)
-        self.files[uuid].write(data)
-        self.info[uuid]["segments"].append(len(data))
-
-        self._renderers[uuid].add_data(data)
-
-    def get_total(self, uuid: str):
-        result = self._renderers[uuid].get_result()
-        result["segments_received"] = len(self.info[uuid]["segments"])
-
-        self.files.pop(uuid)
-        self.info.pop(uuid)
-        self._renderers.pop(uuid)
-
-        return result
+from core.video_aggregator import VideoDecoder, DecoderCreator
 
 
-class VideoRenderer:
+class FmpegDecoder(VideoDecoder):
     def __init__(self):
         self.stopped = threading.Event()
         self.data_queue = Queue()
@@ -150,7 +107,7 @@ class VideoRenderer:
         self.frame_size = self.width * self.height * 3
         self._properties_event.set()
 
-    def start(self):
+    def start_decode(self):
         self._process = Popen(self.ffmpeg_command, stdin=PIPE, stdout=PIPE, bufsize=10 ** 8)
 
         threading.Thread(target=self._data_writer).start()
@@ -159,10 +116,16 @@ class VideoRenderer:
     def add_data(self, data):
         self.data_queue.put(data)
 
-    def stop_render(self):
+    def stop_decode(self):
         self.stopped.set()
         self.data_queue.put(b"")
 
     def get_result(self):
         self._render_done_event.wait()
         return self.result
+
+
+class FfmpegDecoderCreator(DecoderCreator):
+
+    def create(self) -> VideoDecoder:
+        return FmpegDecoder()

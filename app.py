@@ -1,4 +1,5 @@
 import base64
+import os
 from pathlib import Path
 
 
@@ -6,7 +7,10 @@ import flask
 from flask import Flask, render_template, send_file
 from flask_socketio import SocketIO
 
-from core import VideoAggregator
+from core.ffmpeg_decoder import FfmpegDecoderCreator
+from core.pyav_decoder import AVDecoderCreator
+from core.video_aggregator import VideoAggregator
+from di import create_aggregator
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
@@ -16,7 +20,7 @@ socketio = SocketIO(app)
 files = {}
 info = {}
 
-video_aggregator = VideoAggregator()
+video_aggregator = create_aggregator()
 
 
 @socketio.on("init")
@@ -72,7 +76,7 @@ def result_video(video_id):
 @socketio.on("total")
 def total_event(video_id):
     res = video_aggregator.get_total(video_id)
-    print("sending result")
+    print("sending result", res)
     socketio.emit("total_result",
                   (res["frames"], res["segments_received"], res["first_image"], res["last_image"]))
 

@@ -2,9 +2,9 @@ import asyncio
 
 from fastapi import FastAPI, WebSocket
 
-from core import VideoAggregator
+from di import create_aggregator
 
-video_aggregator = VideoAggregator()
+video_aggregator = create_aggregator()
 
 app = FastAPI()
 

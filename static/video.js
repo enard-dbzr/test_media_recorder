@@ -1,5 +1,11 @@
 var socket = io();
 
+socket.on("total_result", (frames, segments, firstImage, lastImage) => {
+    document.getElementById("frames-total").innerText = frames;
+    document.getElementById("first-frame").src = URL.createObjectURL(new Blob([firstImage]));
+    document.getElementById("last-frame").src = URL.createObjectURL(new Blob([lastImage]));
+});
+
 document.addEventListener("DOMContentLoaded", () => {
     // const canvas = document.getElementById('myChart');
 
@@ -95,6 +101,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 startButton.disabled = false;
                 stopButton.disabled = true;
+
+                socket.emit("total", uuid);
             });
 
             recorder.start(timeslice); // can be edited for lower latency
