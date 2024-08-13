@@ -1,3 +1,4 @@
+import logging
 import os
 
 from core.ffmpeg_decoder import FfmpegDecoderCreator
@@ -12,6 +13,6 @@ def create_aggregator():
     else:
         decoder_creator = AVDecoderCreator()
 
-    print(decoder_creator)
+    logging.info("Set decoder: %s", decoder_creator)
 
     return VideoAggregator(decoder_creator)

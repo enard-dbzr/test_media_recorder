@@ -65,8 +65,8 @@ class VideoAggregator:
         result = self._renderers[uuid].get_result()
         result["segments_received"] = len(self.info[uuid]["segments"])
 
-        self.files.pop(uuid)
-        self.info.pop(uuid)
-        self._renderers.pop(uuid)
+        del self.files[uuid]
+        del self.info[uuid]
+        del self._renderers[uuid]
 
         return result

@@ -1,4 +1,7 @@
+import logging
 import multiprocessing
+import queue
+import threading
 from io import BytesIO
 from typing import Optional
 
@@ -12,14 +15,13 @@ class BlockingIO:
     def __init__(self):
         self.buffer = bytearray()
 
-        self.data_queue = multiprocessing.Queue()
-        self.done_event = multiprocessing.Event()
+        self.data_queue = queue.Queue()
+        self.done_event = threading.Event()
 
     def read(self, size):
+        logging.info("reading %d bytes", size)
         while len(self.buffer) < size and not (self.done_event.is_set() and self.data_queue.empty()):
             self.buffer.extend(self.data_queue.get())  # Waits for data
-
-        print("read")
 
         data = self.buffer[:size]
         self.buffer = self.buffer[size:]
@@ -27,26 +29,30 @@ class BlockingIO:
 
     def write(self, data):
         self.data_queue.put(data)
-        print("write")
+        logging.info("write")
 
-    def done(self):
+    def close(self):
         self.done_event.set()
         self.data_queue.put(b"")
+
+        # self.data_queue.close()
 
     def get_buffer_size(self):
         return len(self.buffer)
 
 
-class AVDecoder(multiprocessing.Process, VideoDecoder):
+class AVDecoder(threading.Thread, VideoDecoder):
     def __init__(self):
         super().__init__(daemon=True)
 
-        self._manager = multiprocessing.Manager()
-        self.result = self._manager.dict()
+        # manager = multiprocessing.Manager()
+        # self.result = manager.dict()
+        self.result = {}
 
         self.io_object = BlockingIO()
 
     def run(self):
+        logging.info("start decoding")
         container = av.open(self.io_object, 'r', buffer_size=1024)
 
         first_frame: Optional[VideoFrame] = None
@@ -54,7 +60,7 @@ class AVDecoder(multiprocessing.Process, VideoDecoder):
 
         frames = 0
         for frame in container.decode(video=0):
-            print(frame)
+            # logging.info(frame)
             frames += 1
 
             if first_frame is None:
@@ -70,16 +76,19 @@ class AVDecoder(multiprocessing.Process, VideoDecoder):
         self.result["last_image"] = last_image.getvalue()
 
     def start_decode(self):
+        logging.info("Started")
         self.start()
 
     def add_data(self, data):
         self.io_object.write(data)
 
     def stop_decode(self):
-        self.io_object.done()
+        self.io_object.close()
 
     def get_result(self) -> dict:
-        self.join()
+        logging.info("Waiting result")
+        self.join(timeout=10)
+        logging.info("Got res")
         return self.result
 
 
