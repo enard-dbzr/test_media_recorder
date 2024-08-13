@@ -56,6 +56,9 @@ class VideoAggregator:
 
     def frames(self, uuid: str, data):
         uuid = str(uuid)
+        if uuid not in self.files:
+            return
+
         self.files[uuid].write(data)
         self.info[uuid]["segments"].append(len(data))
 

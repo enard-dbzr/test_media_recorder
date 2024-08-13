@@ -1,4 +1,5 @@
 import base64
+import logging
 import os
 from pathlib import Path
 
@@ -19,6 +20,9 @@ socketio = SocketIO(app)
 
 files = {}
 info = {}
+
+logging.basicConfig(level=logging.INFO)
+
 
 video_aggregator = create_aggregator()
 
