@@ -29,17 +29,22 @@ class BlockingIO:
 
 
 class AVProcessDecoder(VideoDecoder):
-    def __init__(self):
-        manager = multiprocessing.Manager()
+    alive_process = 0
+
+    def __init__(self, pool: multiprocessing.Pool, manager):
+        self.pool = pool
+
+        # manager = multiprocessing.Manager()
+        # self.manager = manager
 
         self.data_queue = manager.Queue()
         self.stop_event = manager.Event()
-        self.result_dict = manager.dict()
+        self.result_queue = manager.Queue()
 
-        self.process: Optional[multiprocessing.Process] = None
+        self.process = None
 
     @staticmethod
-    def run(data_queue: queue.Queue, stop_event: threading.Event, result: dict):
+    def run(data_queue: queue.Queue, stop_event: threading.Event, result_queue: queue.Queue = None):
         io_object = BlockingIO(data_queue, stop_event)
 
         logging.info("start decoding")
@@ -61,18 +66,21 @@ class AVProcessDecoder(VideoDecoder):
         first_frame.to_image().save(first_image, "JPEG")
         last_frame.to_image().save(last_image, "JPEG")
 
-        result["frames"] = frames
-        result["first_image"] = first_image.getvalue()
-        result["last_image"] = last_image.getvalue()
+        result = {
+            "frames": frames,
+            "first_image": first_image.getvalue(),
+            "last_image": last_image.getvalue()
+        }
+        if result_queue is not None:
+            result_queue.put(result)
+        return result
 
     def start_decode(self):
         logging.info("Started")
-        self.process = multiprocessing.Process(target=self.run,
-                                               args=(self.data_queue, self.stop_event, self.result_dict),
-                                               name="python_pyav_decoder",
-                                               daemon=True)
-        self.process.start()
-        # print(self.process)
+        self.process = self.pool.apply_async(self.run, (self.data_queue, self.stop_event, self.result_queue))
+
+        AVProcessDecoder.alive_process += 1
+        print(AVProcessDecoder.alive_process)
 
     def add_data(self, data):
         self.data_queue.put(data)
@@ -84,12 +92,27 @@ class AVProcessDecoder(VideoDecoder):
 
     def get_result(self) -> dict:
         logging.info("Waiting result")
-        self.process.join()
-        res = self.result_dict
+        # res = self.process.get()
+        res = self.result_queue.get()
+        # self.process.terminate()
+
+        self.process = None
+        # del self.manager
+        del self.result_queue
+        del self.data_queue
+        del self.stop_event
+
+        AVProcessDecoder.alive_process -= 1
+
         logging.info("Got res")
         return res
 
 
 class AVProcessDecoderCreator(DecoderCreator):
+    def __init__(self, pool_size):
+        self.pool = multiprocessing.Pool(processes=pool_size)
+
+        self.manager = multiprocessing.Manager()
+
     def create(self) -> VideoDecoder:
-        return AVProcessDecoder()
+        return AVProcessDecoder(self.pool, self.manager)

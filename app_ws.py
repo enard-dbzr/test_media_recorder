@@ -5,7 +5,7 @@ from fastapi import FastAPI, WebSocket
 
 from di import create_aggregator
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 
 video_aggregator = create_aggregator()
 
